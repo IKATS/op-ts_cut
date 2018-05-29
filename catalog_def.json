@@ -1,0 +1,58 @@
+[
+  {
+    "family": "Preprocessing_TS__Reduction",
+    "name": "cut_by_metric",
+    "label": "Cut by metric",
+    "description": "Cuts timeseries relatively to criteria over values of a unique metric"
+  },
+  {
+    "name": "cut_by_metric",
+    "label": "Cut DS by metric",
+    "description": "Cuts a dataset relatively to criteria over values of a unique metric",
+    "algorithm": "cut_by_metric",
+    "entry_point": "ikats.algo.core.ts_cut::cut_ds_from_metric",
+    "inputs": [
+      {
+        "name": "ds_name",
+        "label": "DS",
+        "description": "Dataset to cut by criteria on metric",
+        "type": "ds_name"
+      }
+    ],
+    "parameters": [
+      {
+        "name": "metric",
+        "description": "Unique metric used as reference to cut the dataset",
+        "type": "text",
+        "label": "Metric (M)"
+      },
+      {
+        "name": "criteria",
+        "description": "Python expression determining the retention conditions over the selected metric (M). Example : (M>5) and (M<10) and (M not in [7,8])",
+        "type": "text",
+        "label": "Cut condition"
+      },
+      {
+        "name": "group_by",
+        "description": "Criterion used to group timeseries (sharing the same value). Leave blank to not group.",
+        "type": "text",
+        "label": "Group by"
+      },
+      {
+        "name": "fid_pattern",
+        "description": "Python pattern determining format of output functional identifiers. Example : %(fid)s_%(M)s_cut where '%(fid)s' is the Functional Identifier of the original time series and '%(M)s' is metric.",
+        "type": "text",
+        "label": "FuncId pattern",
+        "default_value": "%(fid)s__%(M)s__cut"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "ts_list",
+        "label": "TS list",
+        "description": "List of cut TS (same order as input)",
+        "type": "ts_list"
+      }
+    ]
+  }
+]
