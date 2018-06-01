@@ -18,7 +18,7 @@ from unittest import TestCase
 
 import mock
 
-from ikats.algo.op-ts_cut import TsCut, cut_ts, cut_ds
+from ikats.algo.ts_cut import TsCut, cut_ts, cut_ds
 
 
 def ts_fid_mock(tsuid, *args, **kwargs):

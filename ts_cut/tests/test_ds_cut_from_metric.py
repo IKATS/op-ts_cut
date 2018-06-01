@@ -19,13 +19,13 @@ import logging
 from unittest import TestCase
 import numpy as np
 
-from ikats.algo.op-ts_cut.ds_cut_from_metric import _spark_get_cut_ranges
+from ikats.algo.ts_cut.ds_cut_from_metric import _spark_get_cut_ranges
 
-from ikats.algo.op-ts_cut import cut_ds_from_metric
+from ikats.algo.ts_cut import cut_ds_from_metric
 from ikats.core.library.exception import IkatsNotFoundError
 from ikats.core.resource.api import IkatsApi
 
-LOGGER = logging.getLogger('ikats.algo.op-ds_cut_from_metric')
+LOGGER = logging.getLogger('ikats.algo.ds_cut_from_metric')
 # Log format
 LOGGER.setLevel(logging.DEBUG)
 FORMATTER = logging.Formatter('%(asctime)s:%(levelname)s:%(funcName)s:%(message)s')
