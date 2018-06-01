@@ -14,7 +14,7 @@
     "inputs": [
       {
         "name": "ds_name",
-        "label": "DS",
+        "label": "DSname",
         "description": "Dataset to cut by criteria on metric",
         "type": "ds_name"
       }
