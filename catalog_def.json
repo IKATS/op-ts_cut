@@ -10,11 +10,11 @@
     "label": "Cut DS by metric",
     "description": "Cuts a dataset relatively to criteria over values of a unique metric",
     "algorithm": "cut_by_metric",
-    "entry_point": "ikats.algo.core.ts_cut::cut_ds_from_metric",
+    "entry_point": "op-ts_cut::cut_ds_from_metric",
     "inputs": [
       {
         "name": "ds_name",
-        "label": "DS",
+        "label": "DSname",
         "description": "Dataset to cut by criteria on metric",
         "type": "ds_name"
       }
