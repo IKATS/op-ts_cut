@@ -4,6 +4,7 @@
   "description": "Cuts a dataset relatively to criteria over values of a unique metric",
   "family": "Preprocessing_TS__Reduction",
   "entry_point": "op-ts_cut::cut_ds_from_metric",
+  "visibility": false,
   "inputs": [
     {
       "name": "ds_name",
