@@ -3,7 +3,7 @@
   "label": "Cut DS by metric",
   "description": "Cuts a dataset relatively to criteria over values of a unique metric",
   "family": "Preprocessing_TS__Reduction",
-  "entry_point": "op-ts_cut::cut_ds_from_metric",
+  "entry_point": "ts_cut.ts_cut::cut_ds_from_metric",
   "inputs": [
     {
       "name": "ds_name",
@@ -33,10 +33,10 @@
     },
     {
       "name": "fid_pattern",
-      "description": "Python pattern determining format of output functional identifiers. Example : %(fid)s_%(M)s_cut where '%(fid)s' is the Functional Identifier of the original time series and '%(M)s' is metric.",
+      "description": "Python pattern determining format of output functional identifiers. Example : {fid}_{M}_cut where '{fid}' is the Functional Identifier of the original time series and '{M}' is metric.",
       "type": "text",
       "label": "FuncId pattern",
-      "default_value": "%(fid)s__%(M)s__cut"
+      "default_value": "{fid}_{M}__cut"
     }
   ],
   "outputs": [

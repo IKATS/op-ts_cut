@@ -3,7 +3,7 @@
   "label": "Cut TS",
   "description": "The implementation cuts one TS along time axis: keep only the points situated in specified time interval. This implementation saves the resulting TS, and returns references.",
   "family": "Preprocessing_TS__Reduction",
-  "entry_point": "ikats.algo.ts_cut.ts_cut::cut_ts",
+  "entry_point": "ts_cut.ts_cut::cut_ts",
   "visibility": false,
   "inputs": [
     {

@@ -3,7 +3,7 @@
   "label": "Cut DS",
   "description": "The implementation cuts one DATASET along time axis: keep only the points situated in specified time interval. This implementation saves the resulting TS, and returns references.",
   "family": "Preprocessing_TS__Reduction",
-  "entry_point": "ikats.algo.ts_cut.ts_cut::cut_ds",
+  "entry_point": "ts_cut.ts_cut::cut_ds",
   "inputs": [
     {
       "name": "ds_name",
