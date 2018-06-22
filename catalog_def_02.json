@@ -1,0 +1,44 @@
+{
+  "name": "cut_ts",
+  "label": "Cut TS",
+  "description": "The implementation cuts one TS along time axis: keep only the points situated in specified time interval. This implementation saves the resulting TS, and returns references.",
+  "family": "Preprocessing_TS__Reduction",
+  "entry_point": "ikats.algo.ts_cut.ts_cut::cut_ts",
+  "visibility": false,
+  "inputs": [
+    {
+      "name": "tsuid",
+      "label": "tsuid",
+      "description": "The TSUID reference of a Time Serie",
+      "type": "tsuid"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "sd",
+      "description": "Start date (millisec): optional: if missing, ikats_start_date metadata is used as default value",
+      "type": "date",
+      "label": "Start date"
+    },
+    {
+      "name": "ed",
+      "description": "End date (millisec): optional: if missing, ikats_end_date metadata is used as default value",
+      "type": "date",
+      "label": "End date"
+    },
+    {
+      "name": "nb_points",
+      "description": "Optional: maximum number of points retained by the time cut.",
+      "type": "number",
+      "label": "Number of points"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "result",
+      "label": "result",
+      "description": "Reference to the TS resulting from the time cut.",
+      "type": "ts_list"
+    }
+  ]
+}
