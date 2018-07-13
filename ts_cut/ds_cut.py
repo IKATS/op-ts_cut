@@ -117,7 +117,7 @@ def dataset_cut(ds_name=None,
         # Prepare data to compute by defining intervals of final size nb_points_by_chunk
         # Chunk intervals computation :
 
-        data_chunk_size = int((nb_points_by_chunk - 1) * ref_period)
+        data_chunk_size = int(nb_points_by_chunk * ref_period)
 
         # Computing intervals for chunk definition
         interval_limits = np.hstack((np.arange(sd, ed, data_chunk_size, dtype=np.int64), ed))
@@ -176,6 +176,12 @@ def dataset_cut(ds_name=None,
                     if nb_cumul > nb_points:
                         cut_info[ts[0]] = (chunk_index, points - (nb_cumul - nb_points))
                         break
+                else:
+                    LOGGER.warning(
+                        "Number of points cutted with start cutting date provided exceeds time series %s size"
+                        % IkatsApi.ts.fid(ts[0][0]))
+                    # case nb_points > nb points of the timeseries
+                    cut_info[ts[0]] = (chunk_index, points)
 
             # INTPUT : [((TSUID_origin, func_id), chunk_index, (nb_points, data_cut_array)), ...]
             # OUTPUT : [((TSUID_origin, func_id), data_cut_array), ...]
