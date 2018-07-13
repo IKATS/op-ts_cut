@@ -37,7 +37,7 @@ STREAM_HANDLER.setFormatter(FORMATTER)
 LOGGER.addHandler(STREAM_HANDLER)
 
 
-class TestTsCut(TestCase):
+class TestDsCutByMetric(TestCase):
     """
     Tests the ds_cut_from_metric method
 

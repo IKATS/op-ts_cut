@@ -18,7 +18,7 @@ from unittest import TestCase
 
 import mock
 
-from ikats.algo.ts_cut import TsCut, cut_ts, cut_ds
+from ikats.algo.ts_cut import TsCut, cut_ts
 
 
 def ts_fid_mock(tsuid, *args, **kwargs):
@@ -290,36 +290,3 @@ class TestTsCut(TestCase):
         """
         results = cut_ts(tsuid='MOCK_TSUID', nb_points=5, save=False)
         self.assertEqual(len(results), 5)
-
-    # No mock possible due to multiprocessing
-    def test_cut_ds_nb_points(self):
-        """
-        Test of a nominal cut function by providing number of points
-        """
-        results = cut_ds(ds_name="Portfolio", sd=1449755766000, nb_points=17, save=False)
-
-        self.assertEqual(len(results), 13)
-
-        for i in results:
-            self.assertEqual(len(i), 17)
-
-    # No mock possible due to multiprocessing
-    def test_cut_ds_end_date(self):
-        """
-        Test of a nominal cut function by providing end date
-        """
-        results = cut_ds(ds_name="Portfolio", sd=1449755766000, ed=1449755780000, save=False)
-        self.assertEqual(len(results), 13)
-
-        for i in results:
-            self.assertEqual(len(i), 15)
-
-    def test_cut_ds_no_pt_in_interval(self):
-        """
-        Test of a cut function with no point in interval
-        """
-        results = cut_ds(ds_name="Portfolio", sd=1449755766001, ed=1449755766002, save=False)
-        self.assertEqual(len(results), 13)
-
-        for i in results:
-            self.assertEqual(len(i), 0)
