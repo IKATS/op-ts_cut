@@ -120,7 +120,7 @@ def dataset_cut(ds_name=None,
         data_chunk_size = int(nb_points_by_chunk * ref_period)
 
         # Computing intervals for chunk definition
-        interval_limits = np.hstack((np.arange(sd, ed, data_chunk_size, dtype=np.int64), ed))
+        interval_limits = np.hstack(np.arange(sd, ed, data_chunk_size, dtype=np.int64))
 
         # from intervals we define chunk of data to compute
         # ex : intervals = [ 1, 2, 3] => 2 chunks [1, 2] and [2, 3]
@@ -128,7 +128,12 @@ def dataset_cut(ds_name=None,
                                  func_id,
                                  i,
                                  interval_limits[i],
-                                 interval_limits[i + 1]) for i in range(len(interval_limits) - 1)])
+                                 interval_limits[i + 1] - 1) for i in range(len(interval_limits) - 1)])
+        data_to_compute.append((tsuid,
+                                func_id,
+                                len(interval_limits) - 1,
+                                interval_limits[-1],
+                                ed + 1))
 
     LOGGER.info("Running dataset cut using Spark")
     # Create or get a spark Context
@@ -263,7 +268,7 @@ def _spark_cut(data, min, max):
 
     result = []
     # last point not evaluated
-    for timestamp, value in data[:-1]:
+    for timestamp, value in data:
         if timestamp >= min:
             # if max not provided, no upper cut performed (case of cutting a number of points)
             if max is None or timestamp <= max:

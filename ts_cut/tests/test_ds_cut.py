@@ -107,7 +107,7 @@ def _check_results(self, ts_list, result, expected_data):
             raise
 
 
-def _init_nominal():
+def _init_nominal(ts_id=1):
     data_to_cut = np.array([
         [1e12 + 1000, 3.0],
         [1e12 + 2000, 15.0],
@@ -121,7 +121,7 @@ def _init_nominal():
         [1e12 + 44000, 7.5],
         [1e12 + 52000, 35.0]])
 
-    return gen_ts(data_to_cut, 1)
+    return gen_ts(data_to_cut, ts_id)
 
 
 class TestDsCut(unittest.TestCase):
@@ -269,11 +269,11 @@ class TestDsCut(unittest.TestCase):
         case : NOMINAL
         """
 
-        tsuid1, fid1 = _init_nominal()
-        tsuid2, fid2 = _init_nominal()
-        tsuid3, fid3 = _init_nominal()
-        tsuid4, fid4 = _init_nominal()
-        tsuid5, fid5 = _init_nominal()
+        tsuid1, fid1 = _init_nominal(1)
+        tsuid2, fid2 = _init_nominal(2)
+        tsuid3, fid3 = _init_nominal(3)
+        tsuid4, fid4 = _init_nominal(4)
+        tsuid5, fid5 = _init_nominal(5)
 
         start_cut = 1e12 + 3000
         end_cut = 1e12 + 44000
