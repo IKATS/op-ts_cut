@@ -27,7 +27,7 @@
     },
     {
       "name": "nb_points",
-      "description": "Number of points retained by the time cut. optional: if missing, end cutting date shall be provided instead (mutually exclusive)",
+      "description": "Number of points retained by the time cut. Optional: if missing, end cutting date shall be provided instead (mutually exclusive)",
       "type": "number",
       "label": "Number of points"
     }

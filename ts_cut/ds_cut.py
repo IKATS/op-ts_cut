@@ -42,36 +42,36 @@ def dataset_cut(ds_name=None,
     * Provide a start date and a number of points to get (much longer - not recommended)
 
     :param ds_name: name of the dataset to cut
-    :param start: start cutting date
-    :param end: end cutting date
-    :param nb_points: number of points t cut
+    :param start: start cut date
+    :param end: end cut date
+    :param nb_points: number of points to cut
+    :param nb_points_by_chunk: number of points per chunk
     :param generate_metadata: True to generate metadata on-the-fly (ikats_start_date, ikats_end_date, qual_nb_points)
+                              (default : False)
 
     :type ds_name: str
-    :type sd: int
-    :type ed: int
-    :type nb_points: int
-    :type generate_metadata: boolean (default : False)
+    :type start: int
+    :type end: int or None
+    :type nb_points: int or None
+    :type generate_metadata: boolean
 
     :return: list of dict {"tsuid": tsuid, "funcId": func_id}
-    :type return: list of dict
+    :rtype: list of dict
 
     :raise ValueError: if inputs are not filled properly (see called methods description)
     """
 
     # Check inputs validity
     if ds_name is None or type(ds_name) is not str:
-        raise ValueError('valid dataset name must be defined (got %s, type: %s)' % (ds_name, type(ds_name)))
+        raise ValueError('Valid dataset name must be defined (got %s, type: %s)' % (ds_name, type(ds_name)))
     if start is None:
-        raise ValueError('valid start date must be provided (got %s, type: %s)' % (start, type(start)))
+        raise ValueError('Valid start date must be provided (got %s, type: %s)' % (start, type(start)))
     if end is None and nb_points is None:
-        raise ValueError('end date or nb points must be provided to cutting method')
+        raise ValueError('End date or nb points must be provided to cut method')
     if end is not None and nb_points is not None:
-        raise ValueError(
-            'end date and nb points can not be provided to cutting method together')
+        raise ValueError('End date and nb points can not be provided to cut method together')
     if end is not None and start is not None and end == start:
-        raise ValueError(
-            'start date and end date are identical')
+        raise ValueError('start date and end date are identical')
 
     # List of chunks of data and associated information to parallelize with Spark
     data_to_compute = []
@@ -85,33 +85,33 @@ def dataset_cut(ds_name=None,
     # Collecting information from metadata
     for tsuid in tsuid_list:
         if tsuid not in meta_list:
-            LOGGER.error("Timeseries %s : no metadata found in base", tsuid)
+            LOGGER.error("Time series %s : no metadata found in base", tsuid)
             raise ValueError("No ikats metadata available for cutting %s" % tsuid)
         if 'ikats_start_date' not in meta_list[tsuid]:
             # Metadata not found
-            LOGGER.error("Metadata 'ikats_start_date' for timeseries %s not found in base", tsuid)
+            LOGGER.error("Metadata 'ikats_start_date' for time series %s not found in base", tsuid)
             raise ValueError("No start date available for cutting [%s]" % tsuid)
         if 'ikats_end_date' not in meta_list[tsuid]:
             # Metadata not found
-            LOGGER.error("meta data 'ikats_end_date' for timeseries %s not found in base", tsuid)
+            LOGGER.error("Metadata 'ikats_end_date' for time series %s not found in base", tsuid)
             raise ValueError("No end date available for cutting [%s]" % tsuid)
         if 'qual_ref_period' not in meta_list[tsuid]:
             # Metadata not found
-            LOGGER.error("Metadata qual_ref_period' for timeseries %s not found in base", tsuid)
+            LOGGER.error("Metadata qual_ref_period' for time series %s not found in base", tsuid)
             raise ValueError("No reference period available for cutting [%s]" % tsuid)
 
-        # Original timeseries information retrieved from metadata
+        # Original time series information retrieved from metadata
         sd = int(meta_list[tsuid]['ikats_start_date'])
         ed = int(meta_list[tsuid]['ikats_end_date'])
         ref_period = int(float(meta_list[tsuid]['qual_ref_period']))
 
-        # Get the functional identifier of the original timeseries
+        # Get the functional identifier of the original time series
         fid_origin = IkatsApi.ts.fid(tsuid)
 
-        # Generate functional id for resulting timeseries
+        # Generate functional id for resulting time series
         func_id = "%s_cut_%d" % (fid_origin, time.time() * 1e6)
 
-        # Creating new reference in database for new timeseries
+        # Creating new reference in database for new time series
         IkatsApi.ts.create_ref(func_id)
 
         # Prepare data to compute by defining intervals of final size nb_points_by_chunk
@@ -135,6 +135,8 @@ def dataset_cut(ds_name=None,
                                 interval_limits[-1],
                                 ed + 1))
 
+    # Review#494 Depending on biggest time series, we could use spark or not and call the former algo or this one below
+
     LOGGER.info("Running dataset cut using Spark")
     # Create or get a spark Context
     spark_context = ScManager.get()
@@ -155,20 +157,23 @@ def dataset_cut(ds_name=None,
         # OUTPUT : [((TSUID_origin, func_id), chunk_index, (nb_points, data_cut_array)), ...]
         # PROCESS : cut chunks of data, filter empty results
         rdd_cut_chunk_data = rdd_data \
-            .map(lambda x: (x[0], x[1], _spark_cut(data=x[2], min=start, max=end))) \
+            .map(lambda x: (x[0], x[1], _spark_cut(data=x[2], min_date=start, max_date=end))) \
             .filter(lambda x: len(x[2][1]) > 0) \
             .cache()
 
         # no end cutting date provided => case of cutting a given number of points
         if end is None:
 
-            # collect nb points associated to chunk indexes
+            # Review#494: The last point of chunkA corresponds to first point of chunkB. I don't see how do you remove this extra point from nb_cumul
+
+            # INPUT : [((TSUID_origin, func_id), chunk_index, (nb_points, data_cut_array)), ...]
             # OUTPUT : [((TSUID_origin, func_id), [(chunk_index1, nb_points1), (chunk_index2, nb_points2),...], ...]
+            # PROCESS: Collect nb points associated to chunk indexes
             ts_pts_by_chunk = rdd_cut_chunk_data.map(lambda x: (x[0], (x[1], x[2][0]))) \
                 .groupByKey().map(lambda x: (x[0], list(x[1]))) \
                 .collect()
 
-            # compute for each ts from collected data:
+            # Compute for each ts from collected data:
             #   - last chunk index containing points to keep
             #   - the number of points to keep in this last chunk
             # cut_info : {(TSUID_origin1, func_id1):(last_chunk_index1, nb_points1),
@@ -178,23 +183,26 @@ def dataset_cut(ds_name=None,
                 nb_cumul = 0
                 for chunk_index, points in ts[1]:
                     nb_cumul += points
+                    # noinspection PyTypeChecker
                     if nb_cumul > nb_points:
+                        # noinspection PyTypeChecker
                         cut_info[ts[0]] = (chunk_index, points - (nb_cumul - nb_points))
                         break
                 else:
                     LOGGER.warning(
-                        "Number of points cutted with start cutting date provided exceeds time series %s size"
+                        "Number of points cut with start cutting date provided exceeds time series %s size"
                         % IkatsApi.ts.fid(ts[0][0]))
-                    # case nb_points > nb points of the timeseries
+                    # case nb_points > nb points of the time series
+                    # noinspection PyTypeChecker
                     cut_info[ts[0]] = (chunk_index, points)
 
-            # INTPUT : [((TSUID_origin, func_id), chunk_index, (nb_points, data_cut_array)), ...]
+            # INPUT : [((TSUID_origin, func_id), chunk_index, (nb_points, data_cut_array)), ...]
             # OUTPUT : [((TSUID_origin, func_id), data_cut_array), ...]
             rdd_cut_data = rdd_cut_chunk_data.filter(lambda x: x[1] <= cut_info[x[0]][0]) \
                 .map(lambda x: (x[0], x[2][1][:cut_info[x[0]][1]] if x[1] == cut_info[x[0]][0] else x[2][1]))
 
         else:
-            # INTPUT : [((TSUID_origin, func_id), chunk_index, (nb_points, data_cut_array)), ...]
+            # INPUT : [((TSUID_origin, func_id), chunk_index, (nb_points, data_cut_array)), ...]
             # OUTPUT : [((TSUID_origin, func_id), data_cut_array), ...]
             rdd_cut_data = rdd_cut_chunk_data.map(lambda x: (x[0], x[2][1]))
 
@@ -219,7 +227,7 @@ def dataset_cut(ds_name=None,
         # Stop spark Context
         ScManager.stop()  # Post-processing : metadata import and return dict building
 
-    # returns list of dict containing the results of the cutted time series : TSUID and functional identifiers
+    # Returns list of dict containing the results of the cut time series : TSUID and functional identifiers
     results = []
     for timeseries in identifiers:
         tsuid_origin = timeseries[0]
@@ -228,6 +236,7 @@ def dataset_cut(ds_name=None,
         sd = timeseries[3]
         ed = timeseries[4]
 
+        # Review#494: You assume ref_period is always the same for each TS. Moreover, you use the value of the last TS
         # Import metadata in non temporal database
         _save_metadata(tsuid=tsuid, md_name='qual_ref_period', md_value=ref_period, data_type=DTYPE.number,
                        force_update=True)
@@ -248,7 +257,7 @@ def dataset_cut(ds_name=None,
     return results
 
 
-def _spark_cut(data, min, max):
+def _spark_cut(data, min_date, max_date):
     """
     Performs a temporal cut on data provided :
     keep only data with timestamp greater or equal than min and lesser or equal than max
@@ -257,10 +266,10 @@ def _spark_cut(data, min, max):
 
     :param data: data points to cut
     :type data: np.array
-    :param min: minimum timestamp to keep
-    :type min: int
-    :param max: maximum timestamp to keep
-    :type max: int
+    :param min_date: minimum timestamp to keep
+    :type min_date: int
+    :param max_date: maximum timestamp to keep
+    :type max_date: int or None
 
     :return: number of points after cut, values and timestamps after cut
     :rtype: tuple (int, np.array)
@@ -269,9 +278,9 @@ def _spark_cut(data, min, max):
     result = []
     # last point not evaluated
     for timestamp, value in data:
-        if timestamp >= min:
+        if timestamp >= min_date:
             # if max not provided, no upper cut performed (case of cutting a number of points)
-            if max is None or timestamp <= max:
+            if max_date is None or timestamp <= max_date:
                 result.append([timestamp, value])
 
     return len(result), result
@@ -289,7 +298,7 @@ def _spark_import(fid, data, generate_metadata):
     :type data: numpy array
     :type generate_metadata: boolean
 
-    :return: identifier of ts created, start date of chunk, end date of chunk
+    :return: identifier of ts created, start date of chunk, end date of chunk (dates in timestamp)
     :rtype: tuple (tsuid, sd, ed)
     """
     results = IkatsApi.ts.create(fid=fid,

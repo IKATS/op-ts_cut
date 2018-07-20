@@ -27,7 +27,6 @@ It also takes 4 inputs from the user :
 
 The operator has one output of the functional type **ts_list**, which is the list of cut TS (in the same order as input)
 
-
 ## Cut Dataset
 
 Performs a cut on a whole DATASET along time axis: keep only the points situated in specified time interval
