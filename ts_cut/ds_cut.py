@@ -62,7 +62,7 @@ def dataset_cut(ds_name=None,
     :return: list of dict {"tsuid": tsuid, "funcId": func_id}
     :rtype: list of dict
 
-    :raise ValueError: if inputs are not filled properly (see called methods description)
+    :raise ValueError: if inputs are not filled properly
     """
 
     # Check inputs validity
@@ -74,11 +74,20 @@ def dataset_cut(ds_name=None,
         raise ValueError('End date or nb points must be provided to cut method')
     if end is not None and nb_points is not None:
         raise ValueError('End date and nb points can not be provided to cut method together')
-    if end is not None and start is not None and end == start:
-        raise ValueError('start date and end date are identical')
+    if end is not None and start is not None:
+        if end == start:
+            raise ValueError('start date and end date are identical')
+        if end < start:
+            raise ValueError('end date must be superior to end start')
+    if nb_points is not None and nb_points <= 0:
+        raise ValueError('number of points must be strictly greater than 0')
 
     # Extract tsuid list from input dataset
     tsuid_list = IkatsApi.ds.read(ds_name)['ts_list']
+
+    if not tsuid_list:
+        LOGGER.warning('empty dataset provided : %s ' % ds_name)
+        return []
 
     # Checking metadata availability before starting cutting
     meta_list = IkatsApi.md.read(tsuid_list)

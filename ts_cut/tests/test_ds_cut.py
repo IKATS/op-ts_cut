@@ -110,19 +110,19 @@ def _check_results(self, ts_list, result, expected_data):
             raise
 
 
-def _init_nominal(ts_id=1):
+def _init_nominal(ts_id=1, offset=0):
     data_to_cut = np.array([
-        [1e12 + 1000, 3.0],
-        [1e12 + 2000, 15.0],
-        [1e12 + 3000, 8.0],
-        [1e12 + 6000, 25.89],
-        [1e12 + 8000, 3.0],
-        [1e12 + 9000, 21.2],
-        [1e12 + 40000, 18],
-        [1e12 + 43000, 15.0],
-        [1e12 + 43500, 12.0],
-        [1e12 + 44000, 7.5],
-        [1e12 + 52000, 35.0]])
+        [1e12 + 1000 + offset, 3.0],
+        [1e12 + 2000 + offset, 15.0],
+        [1e12 + 3000 + offset, 8.0],
+        [1e12 + 6000 + offset, 25.89],
+        [1e12 + 8000 + offset, 3.0],
+        [1e12 + 9000 + offset, 21.2],
+        [1e12 + 40000 + offset, 18],
+        [1e12 + 43000 + offset, 15.0],
+        [1e12 + 43500 + offset, 12.0],
+        [1e12 + 44000 + offset, 7.5],
+        [1e12 + 52000 + offset, 35.0]])
 
     return gen_ts(data_to_cut, ts_id)
 
@@ -131,15 +131,6 @@ class TestDsCut(unittest.TestCase):
     """
     Test of temporal cut
     """
-
-    # Review#494 Missing test case : 1 of all TS has no points in range
-    # Review#494 Missing test case : Dataset unknown
-    # Review#494 Missing test case : Dataset has no TS
-    # Review#494 Missing test case : start date not aligned with point date
-    # Review#494 Missing test case : end date not aligned with point date
-    # Review#494 Missing test case : number of points too big compared to 1 TS points count
-    # Review#494 Missing test case : end date < start date
-    # Review#494 Missing test case : number of points <0
 
     @classmethod
     def setUpClass(cls):
@@ -195,6 +186,8 @@ class TestDsCut(unittest.TestCase):
             result_tsuids = [x['tsuid'] for x in result]
             for tsuid_res in result_tsuids:
                 self.array_equality(expected_data=expected_result, tsuid_result=tsuid_res)
+        except Exception as err:
+            self.fail("Unexpected error or assert failure in tests")
         finally:
             # clean up
             IkatsApi.ds.delete(ds_name=ds_name, deep=False)
@@ -236,6 +229,8 @@ class TestDsCut(unittest.TestCase):
             result_tsuids = [x['tsuid'] for x in result]
             for tsuid_res in result_tsuids:
                 self.array_equality(expected_data=expected_result, tsuid_result=tsuid_res)
+        except Exception as err:
+            self.fail("Unexpected error or assert failure in tests")
         finally:
             # clean up
             IkatsApi.ds.delete(ds_name=ds_name, deep=False)
@@ -250,10 +245,12 @@ class TestDsCut(unittest.TestCase):
         Check the time series is cut as expected
 
         case : NOMINAL
+            start date not aligned with point date
+            end date not aligned with point date
         """
 
-        start_cut = int(1e12 + 3000)
-        end_cut = int(1e12 + 44000)
+        start_cut = int(1e12 + 2900)
+        end_cut = int(1e12 + 44200)
         nb_points_cut = None
         ds_name = "DS_Test_Cut_Dataset_3"
         result_tsuids = []
@@ -278,6 +275,8 @@ class TestDsCut(unittest.TestCase):
             result_tsuids = [x['tsuid'] for x in result]
             for tsuid_res in result_tsuids:
                 self.array_equality(expected_data=expected_result, tsuid_result=tsuid_res)
+        except Exception as err:
+            self.fail("Unexpected error or assert failure in tests")
         finally:
             # Clean up
             IkatsApi.ds.delete(ds_name=ds_name, deep=False)
@@ -316,13 +315,15 @@ class TestDsCut(unittest.TestCase):
             result_tsuids = [x['tsuid'] for x in result]
             for tsuid_res in result_tsuids:
                 self.array_equality(expected_data=expected_result, tsuid_result=tsuid_res)
+        except Exception as err:
+            self.fail("Unexpected error or assert failure in tests")
         finally:
             # clean up
             if result_tsuids:
                 for tsuid_res in result_tsuids:
                     IkatsApi.ts.delete(tsuid=tsuid_res, no_exception=True)
 
-    def test_degraded_bad_arguments(self):
+    def test_degraded_bad_arguments_exception_raised(self):
         """
         Check behavior when bad arguments provided
 
@@ -365,6 +366,73 @@ class TestDsCut(unittest.TestCase):
             end_cut = int(1e12 + 44000)
             nb_points_cut = None
             dataset_cut(ds_name=self.ds_name, start=start_cut, end=end_cut, nb_points=nb_points_cut, use_spark=True)
+
+        with self.assertRaises(ValueError):
+            # CASE : end date inferior to start date
+            start_cut = int(1e12 + 44000)
+            end_cut = int(1e12 + 40000)
+            nb_points_cut = None
+            dataset_cut(ds_name=self.ds_name, start=start_cut, end=end_cut, nb_points=nb_points_cut, use_spark=True)
+
+        with self.assertRaises(ValueError):
+            # CASE : number of points <0
+            start_cut = int(1e12 + 44000)
+            nb_points = -5
+            result = dataset_cut(ds_name="unknown", start=start_cut, nb_points=nb_points, use_spark=True)
+            self.assertEqual(len(result), 0)
+
+    def test_degraded_bad_arguments_without_exception(self):
+        """
+        Check behavior when bad arguments provided
+
+        case : DEGRADED
+        """
+
+        # CASE : dataset does not exist
+        start_cut = int(1e12 + 44000)
+        end_cut = int(1e12 + 45000)
+        result = dataset_cut(ds_name="unknown", start=start_cut, end=end_cut, use_spark=True)
+        self.assertEqual(len(result), 0)
+
+        # CASE : empty dataset
+        start_cut = int(1e12 + 44000)
+        end_cut = int(1e12 + 45000)
+        IkatsApi.ds.create("empty_ds", "", [])
+        try:
+            result = dataset_cut(ds_name="empty_ds", start=start_cut, end=end_cut, use_spark=True)
+            self.assertEqual(len(result), 0)
+        finally:
+            IkatsApi.ds.delete(ds_name="empty_ds", deep=False)
+
+        # CASE : 1 of all TS has no points in range
+        start_cut = int(1e12 + 3000)
+        end_cut = int(1e12 + 9000)
+        result_tsuids = []
+
+        expected_result = np.array([
+            [1e12 + 3000, 8.0],
+            [1e12 + 6000, 25.89],
+            [1e12 + 8000, 3.0],
+            [1e12 + 9000, 21.2]
+        ])
+        tsuid, fid = _init_nominal(6, 10000)
+        IkatsApi.ds.create("ds_test", "", [tsuid, self.tsuid1, self.tsuid2])
+        try:
+            # Call algorithm
+            result = dataset_cut(ds_name="ds_test", start=start_cut, end=end_cut, use_spark=True)
+            result_tsuids = [x['tsuid'] for x in result]
+            for tsuid_res in result_tsuids:
+                self.array_equality(expected_data=expected_result, tsuid_result=tsuid_res)
+        except Exception as err:
+            self.fail("Unexpected error or assert failure in tests")
+        finally:
+            # clean up
+            IkatsApi.ts.delete(tsuid,no_exception=True)
+            if result_tsuids:
+                for tsuid_res in result_tsuids:
+                    IkatsApi.ts.delete(tsuid=tsuid_res, no_exception=True)
+
+    # Review#494 Missing test case : number of points too big compared to 1 TS points count
 
     # No mock possible due to multiprocessing
     def test_cut_ds_MULTIPROCESSING_nb_points(self):
