@@ -18,6 +18,7 @@ import logging
 import time
 import numpy as np
 
+from ikats.algo.ts_cut import cut_ds_multiprocessing
 from ikats.core.library.exception import IkatsException
 from ikats.core.resource.api import IkatsApi
 from ikats.core.library.spark import ScManager
@@ -31,11 +32,12 @@ def dataset_cut(ds_name=None,
                 end=None,
                 nb_points=None,
                 nb_points_by_chunk=50000,
-                generate_metadata=False):
+                generate_metadata=False,
+                use_spark=None):
     """
     Cutting dataset algorithm.
     Allow to cut a set of TS (dataset).
-    This function uses Spark.
+    This function uses Spark or not, according to the amount of data.
 
     2 methods:
     * Provide a start date and a end date
@@ -48,12 +50,14 @@ def dataset_cut(ds_name=None,
     :param nb_points_by_chunk: number of points per chunk
     :param generate_metadata: True to generate metadata on-the-fly (ikats_start_date, ikats_end_date, qual_nb_points)
                               (default : False)
+    :param use_spark: boolean to force or not spark usage
 
     :type ds_name: str
     :type start: int
     :type end: int or None
     :type nb_points: int or None
     :type generate_metadata: boolean
+    :type use_spark: boolean
 
     :return: list of dict {"tsuid": tsuid, "funcId": func_id}
     :rtype: list of dict
@@ -73,14 +77,82 @@ def dataset_cut(ds_name=None,
     if end is not None and start is not None and end == start:
         raise ValueError('start date and end date are identical')
 
-    # List of chunks of data and associated information to parallelize with Spark
-    data_to_compute = []
-
     # Extract tsuid list from input dataset
     tsuid_list = IkatsApi.ds.read(ds_name)['ts_list']
 
     # Checking metadata availability before starting cutting
     meta_list = IkatsApi.md.read(tsuid_list)
+
+    # If spark usage is not forced:
+    if use_spark is None:
+        # Collecting nb points to decide to use spark or not
+        use_spark = False
+        total_nb_points = 0
+        for tsuid in tsuid_list:
+            # Checking metadata existence
+            if 'qual_nb_points' not in meta_list[tsuid]:
+                # Metadata not found
+                LOGGER.error("Metadata 'qual_nb_points' for time series %s not found in base, using Spark by default",
+                             tsuid)
+                use_spark = True
+                break
+            # Retrieving tme series number of points from metadata
+            nb_points_ts = int(meta_list[tsuid]['qual_nb_points'])
+            # Applying criterion on each time series number of points
+            if nb_points_ts > 2 * nb_points_by_chunk:
+                use_spark = True
+                break
+            # computing dataset total number of points
+            total_nb_points += nb_points_ts
+
+        # Applying criterion on dataset total number of points
+        if total_nb_points > nb_points_by_chunk / 2 * len(tsuid_list):
+            use_spark = True
+
+    if use_spark:
+        return dataset_cut_spark(tsuid_list=tsuid_list,
+                                 nb_points_by_chunk=nb_points_by_chunk,
+                                 start=start,
+                                 end=end,
+                                 nb_points=nb_points,
+                                 meta_list=meta_list,
+                                 generate_metadata=generate_metadata)
+    else:
+        return cut_ds_multiprocessing(ds_name=ds_name,
+                                      sd=start,
+                                      ed=end,
+                                      nb_points=nb_points,
+                                      save=True)
+
+
+def dataset_cut_spark(tsuid_list, start, end, nb_points, nb_points_by_chunk, generate_metadata, meta_list):
+    """
+    Cutting dataset algorithm, using spark
+
+    :param tsuid_list: list of tsuid
+    :param start: start cut date
+    :param end: end cut date
+    :param nb_points: number of points to cut
+    :param nb_points_by_chunk: number of points per chunk
+    :param generate_metadata: True to generate metadata on-the-fly (ikats_start_date, ikats_end_date, qual_nb_points)
+                              (default : False)
+    :param meta_list: dict of metadata (tsuid is the key)
+
+    :type tsuid_list: list
+    :type start: int
+    :type end: int or None
+    :type nb_points: int or None
+    :type generate_metadata: boolean
+    :param meta_list: dict
+
+    :return: list of dict {"tsuid": tsuid, "funcId": func_id}
+    :rtype: list of dict
+
+    :raise ValueError: if inputs are not filled properly (see called methods description)
+    """
+
+    # List of chunks of data and associated information to parallelize with Spark
+    data_to_compute = []
 
     # Collecting information from metadata
     for tsuid in tsuid_list:
@@ -97,7 +169,7 @@ def dataset_cut(ds_name=None,
             raise ValueError("No end date available for cutting [%s]" % tsuid)
         if 'qual_ref_period' not in meta_list[tsuid]:
             # Metadata not found
-            LOGGER.error("Metadata qual_ref_period' for time series %s not found in base", tsuid)
+            LOGGER.error("Metadata 'qual_ref_period' for time series %s not found in base", tsuid)
             raise ValueError("No reference period available for cutting [%s]" % tsuid)
 
         # Original time series information retrieved from metadata
@@ -122,20 +194,22 @@ def dataset_cut(ds_name=None,
         # Computing intervals for chunk definition
         interval_limits = np.hstack(np.arange(sd, ed, data_chunk_size, dtype=np.int64))
 
-        # from intervals we define chunk of data to compute
-        # ex : intervals = [ 1, 2, 3] => 2 chunks [1, 2] and [2, 3]
+        # from intervals we define chunk of data to compute:
+        #
+        # 1. defining chunks excluding last point of data within every chunk
+        # ex : intervals = [ 10, 20, 30, 40 ] => 2 chunks [10, 19] and [20, 29] (last chunk added in step 2)
         data_to_compute.extend([(tsuid,
                                  func_id,
                                  i,
                                  interval_limits[i],
                                  interval_limits[i + 1] - 1) for i in range(len(interval_limits) - 1)])
+        # 2. adding last interval, including last point of data
+        # ex : [30, 40]
         data_to_compute.append((tsuid,
                                 func_id,
                                 len(interval_limits) - 1,
                                 interval_limits[-1],
                                 ed + 1))
-
-    # Review#494 Depending on biggest time series, we could use spark or not and call the former algo or this one below
 
     LOGGER.info("Running dataset cut using Spark")
     # Create or get a spark Context
@@ -163,8 +237,6 @@ def dataset_cut(ds_name=None,
 
         # no end cutting date provided => case of cutting a given number of points
         if end is None:
-
-            # Review#494: The last point of chunkA corresponds to first point of chunkB. I don't see how do you remove this extra point from nb_cumul
 
             # INPUT : [((TSUID_origin, func_id), chunk_index, (nb_points, data_cut_array)), ...]
             # OUTPUT : [((TSUID_origin, func_id), [(chunk_index1, nb_points1), (chunk_index2, nb_points2),...], ...]
@@ -231,14 +303,14 @@ def dataset_cut(ds_name=None,
     results = []
     for timeseries in identifiers:
         tsuid_origin = timeseries[0]
+        ref_period_orig = int(float(meta_list[tsuid_origin]['qual_ref_period']))
         func_id = timeseries[1]
         tsuid = timeseries[2]
         sd = timeseries[3]
         ed = timeseries[4]
 
-        # Review#494: You assume ref_period is always the same for each TS. Moreover, you use the value of the last TS
         # Import metadata in non temporal database
-        _save_metadata(tsuid=tsuid, md_name='qual_ref_period', md_value=ref_period, data_type=DTYPE.number,
+        _save_metadata(tsuid=tsuid, md_name='qual_ref_period', md_value=ref_period_orig, data_type=DTYPE.number,
                        force_update=True)
         _save_metadata(tsuid=tsuid, md_name='ikats_start_date', md_value=sd, data_type=DTYPE.date, force_update=True)
         _save_metadata(tsuid=tsuid, md_name='ikats_end_date', md_value=ed, data_type=DTYPE.date, force_update=True)
