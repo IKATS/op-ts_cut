@@ -15,8 +15,10 @@ limitations under the License.
 
 """
 import logging
-import multiprocessing
 import time
+import os
+from functools import partial
+from multiprocessing.pool import Pool
 
 from ikats.core.library.exception import IkatsConflictError
 from ikats.core.resource.api import IkatsApi
@@ -216,3 +218,54 @@ def cut_ts(tsuid=None, sd=None, ed=None, nb_points=None, fid=None, save=True):
         return ts_cut.save(fid, tsuid)
     else:
         return ts_cut.result
+
+
+
+def cut_ds_multiprocessing(ds_name=None, sd=None, ed=None, nb_points=None, save=True):
+    """
+    Cutting dataset wrapper.
+    Allow to cut a set of TS (dataset).
+    This function uses multiprocessing.
+
+    2 methods:
+    * Provide a start date and a end date
+    * Provide a start date and a number of points to get
+
+    :param ds_name: name of the dataset to cut
+    :param sd: start date
+    :param ed: end date
+    :param nb_points: number of points
+    :param save: save flag (True by default)
+
+    :type ds_name: str
+    :type sd: int
+    :type ed: int
+    :type nb_points: int
+    :type save: bool
+
+    :return: the cut dataset content (if save=False) or the (TSUID + functional identifier) list (if save=True)
+
+    :raise ValueError: if inputs are not filled properly (see called methods description)
+    """
+
+    # Check inputs validity
+    if ds_name is None or type(ds_name) is not str:
+        raise ValueError('valid dataset name must be defined (got %s, type: %s)' % (ds_name, type(ds_name)))
+    if ed is None and nb_points is None:
+        raise ValueError('end date or nb points must be provided to cutting method')
+    if ed is not None and nb_points is not None:
+        raise ValueError(
+            'end date and nb points can not be provided to cutting method together')
+    if ed is not None and sd is not None and ed == sd:
+        raise ValueError(
+            'start date and end date are identical')
+
+    ts_list = IkatsApi.ds.read(ds_name)['ts_list']
+
+    pool = Pool(processes=min(len(ts_list), os.cpu_count()))
+
+    partial_cut = partial(cut_ts, sd=sd, ed=ed, nb_points=nb_points, fid=None, save=save)
+
+    results = pool.map(partial_cut, ts_list)
+
+    return results
