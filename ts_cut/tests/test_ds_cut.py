@@ -17,11 +17,9 @@ limitations under the License.
 
 import logging
 import unittest
-
 import numpy as np
-
-from ikats.algo.ts_cut.ds_cut import dataset_cut
 from ikats.core.resource.api import IkatsApi
+from ikats.algo.ts_cut import cut_ds_multiprocessing, dataset_cut
 
 
 def log_to_stdout(logger_to_use):
@@ -143,6 +141,22 @@ class TestDsCut(unittest.TestCase):
     # Review#494 Missing test case : end date < start date
     # Review#494 Missing test case : number of points <0
 
+    @classmethod
+    def setUpClass(cls):
+        cls.tsuid1, cls.fid1 = _init_nominal(1)
+        cls.tsuid2, cls.fid2 = _init_nominal(2)
+        cls.tsuid3, cls.fid3 = _init_nominal(3)
+        cls.tsuid4, cls.fid4 = _init_nominal(4)
+        cls.tsuid5, cls.fid5 = _init_nominal(5)
+        cls.ds_name = "DS_Test_Cut_Dataset"
+        IkatsApi.ds.create(ds_name=cls.ds_name, description="",
+                           tsuid_list=[cls.tsuid1, cls.tsuid2, cls.tsuid3, cls.tsuid4, cls.tsuid5])
+
+    @classmethod
+    def tearDownClass(cls):
+        # clean up
+        IkatsApi.ds.delete(ds_name=cls.ds_name, deep=True)
+
     def array_equality(self, expected_data, tsuid_result):
         self.assertTrue(np.allclose(
             np.array(expected_data, dtype=np.float64),
@@ -158,11 +172,10 @@ class TestDsCut(unittest.TestCase):
         case : NOMINAL
         """
 
-        tsuid, fid = _init_nominal()
         start_cut = int(1e12 + 3000)
         end_cut = None
         nb_points_cut = 7
-        ds_name = "DS_Test_Cut_Dataset"
+        ds_name = "DS_Test_Cut_Dataset_1"
         result_tsuids = []
 
         expected_result = np.array([
@@ -174,17 +187,17 @@ class TestDsCut(unittest.TestCase):
             [1e12 + 43000, 15.0],
             [1e12 + 43500, 12.0]
         ])
-        IkatsApi.ds.create(ds_name=ds_name, description="", tsuid_list=[tsuid])
+        IkatsApi.ds.create(ds_name=ds_name, description="", tsuid_list=[self.tsuid1])
 
         try:
             # Call algorithm
-            result = dataset_cut(ds_name=ds_name, start=start_cut, end=end_cut, nb_points=nb_points_cut)
+            result = dataset_cut(ds_name=ds_name, start=start_cut, end=end_cut, nb_points=nb_points_cut, use_spark=True)
             result_tsuids = [x['tsuid'] for x in result]
             for tsuid_res in result_tsuids:
                 self.array_equality(expected_data=expected_result, tsuid_result=tsuid_res)
         finally:
             # clean up
-            IkatsApi.ds.delete(ds_name=ds_name, deep=True)
+            IkatsApi.ds.delete(ds_name=ds_name, deep=False)
             if result_tsuids:
                 for tsuid_res in result_tsuids:
                     IkatsApi.ts.delete(tsuid=tsuid_res, no_exception=True)
@@ -198,11 +211,10 @@ class TestDsCut(unittest.TestCase):
         case : NOMINAL
         """
 
-        tsuid, fid = _init_nominal()
         start_cut = int(1e12 + 3000)
         end_cut = int(1e12 + 44000)
         nb_points_cut = None
-        ds_name = "DS_Test_Cut_Dataset"
+        ds_name = "DS_Test_Cut_Dataset_2"
         result_tsuids = []
 
         expected_result = np.array([
@@ -216,17 +228,17 @@ class TestDsCut(unittest.TestCase):
             [1e12 + 44000, 7.5]
         ])
 
-        IkatsApi.ds.create(ds_name=ds_name, description="", tsuid_list=[tsuid])
+        IkatsApi.ds.create(ds_name=ds_name, description="", tsuid_list=[self.tsuid1])
 
         try:
             # Call algorithm
-            result = dataset_cut(ds_name=ds_name, start=start_cut, end=end_cut, nb_points=nb_points_cut)
+            result = dataset_cut(ds_name=ds_name, start=start_cut, end=end_cut, nb_points=nb_points_cut, use_spark=True)
             result_tsuids = [x['tsuid'] for x in result]
             for tsuid_res in result_tsuids:
                 self.array_equality(expected_data=expected_result, tsuid_result=tsuid_res)
         finally:
             # clean up
-            IkatsApi.ds.delete(ds_name=ds_name, deep=True)
+            IkatsApi.ds.delete(ds_name=ds_name, deep=False)
             if result_tsuids:
                 for tsuid_res in result_tsuids:
                     IkatsApi.ts.delete(tsuid=tsuid_res, no_exception=True)
@@ -240,11 +252,10 @@ class TestDsCut(unittest.TestCase):
         case : NOMINAL
         """
 
-        tsuid, fid = _init_nominal()
         start_cut = int(1e12 + 3000)
         end_cut = int(1e12 + 44000)
         nb_points_cut = None
-        ds_name = "DS_Test_Cut_Dataset"
+        ds_name = "DS_Test_Cut_Dataset_3"
         result_tsuids = []
 
         expected_result = np.array([
@@ -258,18 +269,18 @@ class TestDsCut(unittest.TestCase):
             [1e12 + 44000, 7.5]
         ])
 
-        IkatsApi.ds.create(ds_name=ds_name, description="", tsuid_list=[tsuid])
+        IkatsApi.ds.create(ds_name=ds_name, description="", tsuid_list=[self.tsuid1])
 
         try:
             # Call algorithm
             result = dataset_cut(ds_name=ds_name, start=start_cut, end=end_cut, nb_points=nb_points_cut,
-                                 nb_points_by_chunk=2)
+                                 nb_points_by_chunk=2, use_spark=True)
             result_tsuids = [x['tsuid'] for x in result]
             for tsuid_res in result_tsuids:
                 self.array_equality(expected_data=expected_result, tsuid_result=tsuid_res)
         finally:
             # Clean up
-            IkatsApi.ds.delete(ds_name=ds_name, deep=True)
+            IkatsApi.ds.delete(ds_name=ds_name, deep=False)
             if result_tsuids:
                 for tsuid_res in result_tsuids:
                     IkatsApi.ts.delete(tsuid=tsuid_res, no_exception=True)
@@ -282,17 +293,9 @@ class TestDsCut(unittest.TestCase):
 
         case : NOMINAL
         """
-
-        tsuid1, fid1 = _init_nominal(1)
-        tsuid2, fid2 = _init_nominal(2)
-        tsuid3, fid3 = _init_nominal(3)
-        tsuid4, fid4 = _init_nominal(4)
-        tsuid5, fid5 = _init_nominal(5)
-
         start_cut = int(1e12 + 3000)
         end_cut = int(1e12 + 44000)
         nb_points_cut = None
-        ds_name = "DS_Test_Cut_Dataset"
         result_tsuids = []
 
         expected_result = np.array([
@@ -306,17 +309,15 @@ class TestDsCut(unittest.TestCase):
             [1e12 + 44000, 7.5]
         ])
 
-        IkatsApi.ds.create(ds_name=ds_name, description="", tsuid_list=[tsuid1, tsuid2, tsuid3, tsuid4, tsuid5])
         try:
             # Call algorithm
-            result = dataset_cut(ds_name=ds_name, start=start_cut, end=end_cut, nb_points=nb_points_cut,
-                                 nb_points_by_chunk=7)
+            result = dataset_cut(ds_name=self.ds_name, start=start_cut, end=end_cut, nb_points=nb_points_cut,
+                                 nb_points_by_chunk=7, use_spark=True)
             result_tsuids = [x['tsuid'] for x in result]
             for tsuid_res in result_tsuids:
                 self.array_equality(expected_data=expected_result, tsuid_result=tsuid_res)
         finally:
             # clean up
-            IkatsApi.ds.delete(ds_name=ds_name, deep=True)
             if result_tsuids:
                 for tsuid_res in result_tsuids:
                     IkatsApi.ts.delete(tsuid=tsuid_res, no_exception=True)
@@ -328,52 +329,72 @@ class TestDsCut(unittest.TestCase):
         case : DEGRADED
         """
 
-        tsuid, fid = _init_nominal()
-        ds_name = "DS_Test_Cut_Dataset"
-
-        IkatsApi.ds.create(ds_name=ds_name, description="", tsuid_list=[tsuid])
-
         with self.assertRaises(ValueError):
             # CASE : no dataset name provided
-            ds_name = None
             start_cut = int(1e12 + 3000)
             end_cut = int(1e12 + 44000)
             nb_points_cut = None
             # noinspection PyTypeChecker
-            dataset_cut(ds_name=ds_name, start=start_cut, end=end_cut, nb_points=nb_points_cut)
+            dataset_cut(ds_name=None, start=start_cut, end=end_cut, nb_points=nb_points_cut, use_spark=True)
 
         with self.assertRaises(ValueError):
             # CASE : no start date provided
-            ds_name = "DS_Test_Cut_Dataset"
             start_cut = None
             end_cut = int(1e12 + 44000)
             nb_points_cut = None
             # noinspection PyTypeChecker
-            dataset_cut(ds_name=ds_name, start=start_cut, end=end_cut, nb_points=nb_points_cut)
+            dataset_cut(ds_name=self.ds_name, start=start_cut, end=end_cut, nb_points=nb_points_cut, use_spark=True)
 
         with self.assertRaises(ValueError):
             # CASE : no end date nor nb points provided
-            ds_name = "DS_Test_Cut_Dataset"
             start_cut = int(1e12 + 3000)
             end_cut = None
             nb_points_cut = None
-            dataset_cut(ds_name=ds_name, start=start_cut, end=end_cut, nb_points=nb_points_cut)
+            dataset_cut(ds_name=self.ds_name, start=start_cut, end=end_cut, nb_points=nb_points_cut, use_spark=True)
 
         with self.assertRaises(ValueError):
             # CASE : end date and number of points provided together
-            ds_name = "DS_Test_Cut_Dataset"
             start_cut = int(1e12 + 3000)
             end_cut = int(1e12 + 44000)
             nb_points_cut = 18
-            dataset_cut(ds_name=ds_name, start=start_cut, end=end_cut, nb_points=nb_points_cut)
+            dataset_cut(ds_name=self.ds_name, start=start_cut, end=end_cut, nb_points=nb_points_cut, use_spark=True)
 
         with self.assertRaises(ValueError):
             # CASE : end date and start date are equal
-            ds_name = "DS_Test_Cut_Dataset"
             start_cut = int(1e12 + 44000)
             end_cut = int(1e12 + 44000)
             nb_points_cut = None
-            dataset_cut(ds_name=ds_name, start=start_cut, end=end_cut, nb_points=nb_points_cut)
+            dataset_cut(ds_name=self.ds_name, start=start_cut, end=end_cut, nb_points=nb_points_cut, use_spark=True)
 
-        # clean up
-        IkatsApi.ds.delete(ds_name, True)
+    # No mock possible due to multiprocessing
+    def test_cut_ds_MULTIPROCESSING_nb_points(self):
+        """
+        Test of a nominal cut function by providing number of points
+        """
+        results = cut_ds_multiprocessing(ds_name=self.ds_name, sd=int(1e12 + 3000), nb_points=6, save=False)
+
+        self.assertEqual(len(results), 5)
+
+        for i in results:
+            self.assertEqual(len(i), 6)
+
+    # No mock possible due to multiprocessing
+    def test_cut_ds_MULTIPROCESSING_end_date(self):
+        """
+        Test of a nominal cut function by providing end date
+        """
+        results = cut_ds_multiprocessing(ds_name=self.ds_name, sd=int(1e12 + 3000), ed=int(1e12 + 9000), save=False)
+        self.assertEqual(len(results), 5)
+
+        for i in results:
+            self.assertEqual(len(i), 4)
+
+    def test_cut_ds_MULTIPROCESSING_no_pt_in_interval(self):
+        """
+        Test of a cut function with no point in interval
+        """
+        results = cut_ds_multiprocessing(ds_name=self.ds_name, sd=1449755766001, ed=1449755766002, save=False)
+        self.assertEqual(len(results), 5)
+
+        for i in results:
+            self.assertEqual(len(i), 0)
