@@ -94,29 +94,26 @@ def dataset_cut(ds_name=None,
 
     # If spark usage is not forced:
     if use_spark is None:
-        # Collecting nb points to decide to use spark or not
-        use_spark = False
-        total_nb_points = 0
-        for tsuid in tsuid_list:
-            # Checking metadata existence
-            if 'qual_nb_points' not in meta_list[tsuid]:
-                # Metadata not found
-                LOGGER.error("Metadata 'qual_nb_points' for time series %s not found in base, using Spark by default",
-                             tsuid)
-                use_spark = True
-                break
-            # Retrieving tme series number of points from metadata
-            nb_points_ts = int(meta_list[tsuid]['qual_nb_points'])
-            # Applying criterion on each time series number of points
-            if nb_points_ts > 2 * nb_points_by_chunk:
-                use_spark = True
-                break
-            # computing dataset total number of points
-            total_nb_points += nb_points_ts
-
         # Applying criterion on dataset total number of points
-        if total_nb_points > nb_points_by_chunk / 2 * len(tsuid_list):
+        if len(tsuid_list) > 100:
             use_spark = True
+        else:
+            # Collecting nb points to decide to use spark or not
+            use_spark = False
+            for tsuid in tsuid_list:
+                # Checking metadata existence
+                if 'qual_nb_points' not in meta_list[tsuid]:
+                    # Metadata not found
+                    LOGGER.error("Metadata 'qual_nb_points' for time series %s not found in base, using Spark by default",
+                                 tsuid)
+                    use_spark = True
+                    break
+                # Retrieving tme series number of points from metadata
+                nb_points_ts = int(meta_list[tsuid]['qual_nb_points'])
+                # Applying criterion on each time series number of points
+                if nb_points_ts > 2 * nb_points_by_chunk:
+                    use_spark = True
+                    break
 
     if use_spark:
         return dataset_cut_spark(tsuid_list=tsuid_list,
@@ -312,16 +309,12 @@ def dataset_cut_spark(tsuid_list, start, end, nb_points, nb_points_by_chunk, gen
     results = []
     for timeseries in identifiers:
         tsuid_origin = timeseries[0]
-        # Review#494: Not true, if original TS is aperiodic, the cut may change the qual_ref_period
-        ref_period_orig = int(float(meta_list[tsuid_origin]['qual_ref_period']))
         func_id = timeseries[1]
         tsuid = timeseries[2]
         sd = timeseries[3]
         ed = timeseries[4]
 
         # Import metadata in non temporal database
-        _save_metadata(tsuid=tsuid, md_name='qual_ref_period', md_value=ref_period_orig, data_type=DTYPE.number,
-                       force_update=True)
         _save_metadata(tsuid=tsuid, md_name='ikats_start_date', md_value=sd, data_type=DTYPE.date, force_update=True)
         _save_metadata(tsuid=tsuid, md_name='ikats_end_date', md_value=ed, data_type=DTYPE.date, force_update=True)
 
