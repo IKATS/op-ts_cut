@@ -220,7 +220,6 @@ def cut_ts(tsuid=None, sd=None, ed=None, nb_points=None, fid=None, save=True):
         return ts_cut.result
 
 
-
 def cut_ds_multiprocessing(ds_name=None, sd=None, ed=None, nb_points=None, save=True):
     """
     Cutting dataset wrapper.
@@ -239,26 +238,24 @@ def cut_ds_multiprocessing(ds_name=None, sd=None, ed=None, nb_points=None, save=
 
     :type ds_name: str
     :type sd: int
-    :type ed: int
-    :type nb_points: int
+    :type ed: int or None
+    :type nb_points: int or None
     :type save: bool
 
-    :return: the cut dataset content (if save=False) or the (TSUID + functional identifier) list (if save=True)
+    :return: the cut dataset content (if save==False) or the (TSUID + functional identifier) list (if save==True)
 
     :raise ValueError: if inputs are not filled properly (see called methods description)
     """
 
     # Check inputs validity
     if ds_name is None or type(ds_name) is not str:
-        raise ValueError('valid dataset name must be defined (got %s, type: %s)' % (ds_name, type(ds_name)))
+        raise ValueError('Valid dataset name must be defined (got %s, type: %s)' % (ds_name, type(ds_name)))
     if ed is None and nb_points is None:
-        raise ValueError('end date or nb points must be provided to cutting method')
+        raise ValueError('End date or nb points must be provided to cutting method')
     if ed is not None and nb_points is not None:
-        raise ValueError(
-            'end date and nb points can not be provided to cutting method together')
+        raise ValueError('End date and nb points can not be provided to cutting method together')
     if ed is not None and sd is not None and ed == sd:
-        raise ValueError(
-            'start date and end date are identical')
+        raise ValueError('Start date and end date are identical')
 
     ts_list = IkatsApi.ds.read(ds_name)['ts_list']
 

@@ -76,17 +76,17 @@ def dataset_cut(ds_name=None,
         raise ValueError('End date and nb points can not be provided to cut method together')
     if end is not None and start is not None:
         if end == start:
-            raise ValueError('start date and end date are identical')
+            raise ValueError('Start date and end date are identical')
         if end < start:
-            raise ValueError('end date must be superior to end start')
+            raise ValueError('End date must be greater than end start')
     if nb_points is not None and nb_points <= 0:
-        raise ValueError('number of points must be strictly greater than 0')
+        raise ValueError('Number of points must be strictly greater than 0')
 
     # Extract tsuid list from input dataset
     tsuid_list = IkatsApi.ds.read(ds_name)['ts_list']
 
-    if not tsuid_list:
-        LOGGER.warning('empty dataset provided : %s ' % ds_name)
+    if len(tsuid_list) == 0:
+        LOGGER.warning('Empty dataset provided: %s', ds_name)
         return []
 
     # Checking metadata availability before starting cutting
@@ -144,7 +144,7 @@ def dataset_cut_spark(tsuid_list, start, end, nb_points, nb_points_by_chunk, gen
     :param nb_points: number of points to cut
     :param nb_points_by_chunk: number of points per chunk
     :param generate_metadata: True to generate metadata on-the-fly (ikats_start_date, ikats_end_date, qual_nb_points)
-                              (default : False)
+                              (default: False)
     :param meta_list: dict of metadata (tsuid is the key)
 
     :type tsuid_list: list
@@ -166,7 +166,7 @@ def dataset_cut_spark(tsuid_list, start, end, nb_points, nb_points_by_chunk, gen
     # Collecting information from metadata
     for tsuid in tsuid_list:
         if tsuid not in meta_list:
-            LOGGER.error("Time series %s : no metadata found in base", tsuid)
+            LOGGER.error("Time series %s: no metadata found in base", tsuid)
             raise ValueError("No ikats metadata available for cutting %s" % tsuid)
         if 'ikats_start_date' not in meta_list[tsuid]:
             # Metadata not found
@@ -196,7 +196,7 @@ def dataset_cut_spark(tsuid_list, start, end, nb_points, nb_points_by_chunk, gen
         IkatsApi.ts.create_ref(func_id)
 
         # Prepare data to compute by defining intervals of final size nb_points_by_chunk
-        # Chunk intervals computation :
+        # Chunk intervals computation:
 
         data_chunk_size = int(nb_points_by_chunk * ref_period)
 
@@ -206,14 +206,14 @@ def dataset_cut_spark(tsuid_list, start, end, nb_points, nb_points_by_chunk, gen
         # from intervals we define chunk of data to compute:
         #
         # 1. defining chunks excluding last point of data within every chunk
-        # ex : intervals = [ 10, 20, 30, 40 ] => 2 chunks [10, 19] and [20, 29] (last chunk added in step 2)
+        # ex: intervals = [ 10, 20, 30, 40 ] => 2 chunks [10, 19] and [20, 29] (last chunk added in step 2)
         data_to_compute.extend([(tsuid,
                                  func_id,
                                  i,
                                  interval_limits[i],
                                  interval_limits[i + 1] - 1) for i in range(len(interval_limits) - 1)])
         # 2. adding last interval, including last point of data
-        # ex : [30, 40]
+        # ex: [30, 40]
         data_to_compute.append((tsuid,
                                 func_id,
                                 len(interval_limits) - 1,
@@ -226,19 +226,19 @@ def dataset_cut_spark(tsuid_list, start, end, nb_points, nb_points_by_chunk, gen
 
     try:
 
-        # OUTPUT : [(TSUID_origin, func_id, chunk_index, sd_interval, ed_interval), ...]
+        # OUTPUT: [(TSUID_origin, func_id, chunk_index, sd_interval, ed_interval), ...]
         inputs = spark_context.parallelize(data_to_compute, len(data_to_compute))
 
-        # INPUT :  [(TSUID_origin, func_id, chunk_index, sd_interval, ed_interval), ...]
-        # OUTPUT : [((TSUID_origin, func_id), chunk_index, original_data_array), ...]
-        # PROCESS : read original data in database / filter chunk with no data
+        # INPUT:  [(TSUID_origin, func_id, chunk_index, sd_interval, ed_interval), ...]
+        # OUTPUT: [((TSUID_origin, func_id), chunk_index, original_data_array), ...]
+        # PROCESS: read original data in database / filter chunk with no data
         rdd_data = inputs \
             .map(lambda x: ((x[0], x[1]), x[2], IkatsApi.ts.read(tsuid_list=x[0], sd=int(x[3]), ed=int(x[4]))[0])) \
             .filter(lambda x: len(x[2]) > 0)
 
-        # INPUT :  [((TSUID_origin, func_id), chunk_index, original_data_array), ...]
-        # OUTPUT : [((TSUID_origin, func_id), chunk_index, (nb_points, data_cut_array)), ...]
-        # PROCESS : cut chunks of data, filter empty results
+        # INPUT:  [((TSUID_origin, func_id), chunk_index, original_data_array), ...]
+        # OUTPUT: [((TSUID_origin, func_id), chunk_index, (nb_points, data_cut_array)), ...]
+        # PROCESS: cut chunks of data, filter empty results
         rdd_cut_chunk_data = rdd_data \
             .map(lambda x: (x[0], x[1], _spark_cut(data=x[2], min_date=start, max_date=end))) \
             .filter(lambda x: len(x[2][1]) > 0) \
@@ -247,8 +247,8 @@ def dataset_cut_spark(tsuid_list, start, end, nb_points, nb_points_by_chunk, gen
         # no end cutting date provided => case of cutting a given number of points
         if end is None:
 
-            # INPUT : [((TSUID_origin, func_id), chunk_index, (nb_points, data_cut_array)), ...]
-            # OUTPUT : [((TSUID_origin, func_id), [(chunk_index1, nb_points1), (chunk_index2, nb_points2),...], ...]
+            # INPUT: [((TSUID_origin, func_id), chunk_index, (nb_points, data_cut_array)), ...]
+            # OUTPUT: [((TSUID_origin, func_id), [(chunk_index1, nb_points1), (chunk_index2, nb_points2),...], ...]
             # PROCESS: Collect nb points associated to chunk indexes
             ts_pts_by_chunk = rdd_cut_chunk_data.map(lambda x: (x[0], (x[1], x[2][0]))) \
                 .groupByKey().map(lambda x: (x[0], list(x[1]))) \
@@ -257,7 +257,7 @@ def dataset_cut_spark(tsuid_list, start, end, nb_points, nb_points_by_chunk, gen
             # Compute for each ts from collected data:
             #   - last chunk index containing points to keep
             #   - the number of points to keep in this last chunk
-            # cut_info : {(TSUID_origin1, func_id1):(last_chunk_index1, nb_points1),
+            # cut_info: {(TSUID_origin1, func_id1):(last_chunk_index1, nb_points1),
             #             (TSUID_origin2, func_id2):(last_chunk_index2, nb_points2), ...}
             cut_info = {}
             for ts in ts_pts_by_chunk:
@@ -277,19 +277,19 @@ def dataset_cut_spark(tsuid_list, start, end, nb_points, nb_points_by_chunk, gen
                     # noinspection PyTypeChecker
                     cut_info[ts[0]] = (chunk_index, points)
 
-            # INPUT : [((TSUID_origin, func_id), chunk_index, (nb_points, data_cut_array)), ...]
-            # OUTPUT : [((TSUID_origin, func_id), data_cut_array), ...]
+            # INPUT: [((TSUID_origin, func_id), chunk_index, (nb_points, data_cut_array)), ...]
+            # OUTPUT: [((TSUID_origin, func_id), data_cut_array), ...]
             rdd_cut_data = rdd_cut_chunk_data.filter(lambda x: x[1] <= cut_info[x[0]][0]) \
                 .map(lambda x: (x[0], x[2][1][:cut_info[x[0]][1]] if x[1] == cut_info[x[0]][0] else x[2][1]))
 
         else:
-            # INPUT : [((TSUID_origin, func_id), chunk_index, (nb_points, data_cut_array)), ...]
-            # OUTPUT : [((TSUID_origin, func_id), data_cut_array), ...]
+            # INPUT: [((TSUID_origin, func_id), chunk_index, (nb_points, data_cut_array)), ...]
+            # OUTPUT: [((TSUID_origin, func_id), data_cut_array), ...]
             rdd_cut_data = rdd_cut_chunk_data.map(lambda x: (x[0], x[2][1]))
 
-        # INPUT :  [((TSUID_origin, func_id), data_cut_array), ...]
-        # OUTPUT : [(TSUID_origin, func_id, TSUID, sd, ed), ...]
-        # PROCESS : create cut data in database / compute global start and end date
+        # INPUT:  [((TSUID_origin, func_id), data_cut_array), ...]
+        # OUTPUT: [(TSUID_origin, func_id, TSUID, sd, ed), ...]
+        # PROCESS: create cut data in database / compute global start and end date
         identifiers = rdd_cut_data \
             .map(lambda x: (x[0][0], x[0][1], _spark_import(fid=x[0][1],
                                                             data=x[1],
@@ -306,12 +306,13 @@ def dataset_cut_spark(tsuid_list, start, end, nb_points, nb_points_by_chunk, gen
 
     finally:
         # Stop spark Context
-        ScManager.stop()  # Post-processing : metadata import and return dict building
+        ScManager.stop()  # Post-processing: metadata import and return dict building
 
-    # Returns list of dict containing the results of the cut time series : TSUID and functional identifiers
+    # Returns list of dict containing the results of the cut time series: TSUID and functional identifiers
     results = []
     for timeseries in identifiers:
         tsuid_origin = timeseries[0]
+        # Review#494: Not true, if original TS is aperiodic, the cut may change the qual_ref_period
         ref_period_orig = int(float(meta_list[tsuid_origin]['qual_ref_period']))
         func_id = timeseries[1]
         tsuid = timeseries[2]
@@ -340,10 +341,10 @@ def dataset_cut_spark(tsuid_list, start, end, nb_points, nb_points_by_chunk, gen
 
 def _spark_cut(data, min_date, max_date):
     """
-    Performs a temporal cut on data provided :
+    Performs a temporal cut on data provided:
     keep only data with timestamp greater or equal than min and lesser or equal than max
 
-    NB : last point of data not evaluated
+    NB: last point of data not evaluated
 
     :param data: data points to cut
     :type data: np.array
