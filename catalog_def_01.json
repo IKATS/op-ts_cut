@@ -3,7 +3,7 @@
   "label": "Cut DS by metric",
   "description": "Cuts a dataset relatively to criteria over values of a unique metric",
   "family": "Preprocessing_TS__Reduction",
-  "entry_point": "ts_cut.ts_cut::cut_ds_from_metric",
+  "entry_point": "ts_cut.ds_cut_from_metric::cut_ds_from_metric",
   "inputs": [
     {
       "name": "ds_name",
