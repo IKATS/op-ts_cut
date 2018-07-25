@@ -15,8 +15,10 @@ limitations under the License.
 
 """
 import logging
-import multiprocessing
 import time
+import os
+from functools import partial
+from multiprocessing.pool import Pool
 
 from ikats.core.library.exception import IkatsConflictError
 from ikats.core.resource.api import IkatsApi
@@ -218,11 +220,7 @@ def cut_ts(tsuid=None, sd=None, ed=None, nb_points=None, fid=None, save=True):
         return ts_cut.result
 
 
-def _cut_ts_multiprocessing(ts, sd, ed, nb_points, save, queue):
-    queue.put(cut_ts(tsuid=ts, sd=sd, ed=ed, nb_points=nb_points, fid=None, save=save))
-
-
-def cut_ds(ds_name=None, sd=None, ed=None, nb_points=None, save=True):
+def cut_ds_multiprocessing(ds_name=None, sd=None, ed=None, nb_points=None, save=True):
     """
     Cutting dataset wrapper.
     Allow to cut a set of TS (dataset).
@@ -240,46 +238,31 @@ def cut_ds(ds_name=None, sd=None, ed=None, nb_points=None, save=True):
 
     :type ds_name: str
     :type sd: int
-    :type ed: int
-    :type nb_points: int
+    :type ed: int or None
+    :type nb_points: int or None
     :type save: bool
 
-    :return: the cut dataset content (if save=False) or the (TSUID + functional identifier) list (if save=True)
+    :return: the cut dataset content (if save==False) or the (TSUID + functional identifier) list (if save==True)
 
     :raise ValueError: if inputs are not filled properly (see called methods description)
     """
 
     # Check inputs validity
     if ds_name is None or type(ds_name) is not str:
-        raise ValueError('valid dataset name must be defined (got %s, type: %s)' % (ds_name, type(ds_name)))
+        raise ValueError('Valid dataset name must be defined (got %s, type: %s)' % (ds_name, type(ds_name)))
     if ed is None and nb_points is None:
-        raise ValueError('end date or nb points must be provided to cutting method')
+        raise ValueError('End date or nb points must be provided to cutting method')
     if ed is not None and nb_points is not None:
-        raise ValueError(
-            'end date and nb points can not be provided to cutting method together')
+        raise ValueError('End date and nb points can not be provided to cutting method together')
     if ed is not None and sd is not None and ed == sd:
-        raise ValueError(
-            'start date and end date are identical')
+        raise ValueError('Start date and end date are identical')
 
-    logger = logging.getLogger(__name__)
-
-    jobs = []
     ts_list = IkatsApi.ds.read(ds_name)['ts_list']
-    queues = []
-    result = []
 
-    for ts in ts_list:
-        queue = multiprocessing.Queue()
-        queues.append(queue)
-        process = multiprocessing.Process(target=_cut_ts_multiprocessing, args=(ts, sd, ed, nb_points, save, queue))
-        jobs.append(process)
-        process.start()
+    pool = Pool(processes=min(len(ts_list), os.cpu_count()))
 
-    for job in jobs:
-        logger.debug("Joining cutting job %s", job)
-        job.join()
+    partial_cut = partial(cut_ts, sd=sd, ed=ed, nb_points=nb_points, fid=None, save=save)
 
-    for queue in queues:
-        result.append(queue.get())
+    results = pool.map(partial_cut, ts_list)
 
-    return result
+    return results
