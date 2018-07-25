@@ -29,18 +29,20 @@ The operator has one output of the functional type **ts_list**, which is the lis
 
 ## Cut Dataset
 
-Performs a cut on a whole DATASET along time axis: keep only the points situated in specified time interval defined by start/end date or by start date/number of points.
+Performs a cut on a whole dataset along time axis: keep only the points situated in specified time interval defined by start/end date or by start date/number of points.
 The algorithm has the choice to use a spark implementation or a multiprocessing one.
-The choice of spark is done when at least one of the following condition is met :
-- at least one time series of the dataset has a size bigger than two times the number of points by chunk of data used by spark (number of points by chunk actual default value : 50000)
-- the dataset total number of time series exceeds 100 timeseries
+The choice of spark is done when at least one of the following condition is met:
+
+- at least one time series of the dataset has more points than two times the number of points by chunk of data used by spark (number of points by chunk default value : 50000)
+- the number of time series in dataset exceeds 100 timeseries
 
 Using spark, cutting by start date/number of points takes more or less 30% more time than cutting by start/end date (because we have to gather size information among the whole range of data for cutting)
 
-Special behaviours:
-- When no point is found in specified range for one or several time series, no result is produced for these series, so a dataset of n time series can produced a list of time series whose size is lesser than n.
-- when cut number of points exceeds the time series size, the cut does not raise an error but returns points from start cutting date to the time series end date
-- when cutting an empty or unknown dataset, an empty result is returned
+Special behaviors:
+
+- When no point is found in specified range for one or several time series, no result is produced for these series, so a dataset of `n` time series can produced a list of time series whose size is lesser than `n`.
+- when cut number of points exceeds the time series size, the operator does not raise an error but returns points from start cutting date to the time series end date
+- when cutting an empty dataset, an empty result is returned
 
 ### Input and parameters
 
