@@ -317,7 +317,7 @@ def _cut_ts_list_using_range(spark_context,
                              md_list,
                              ranges,
                              metric,
-                             fid_pattern="%(fid)s__%(M)s__cut",
+                             fid_pattern="{fid}__{M}__cut",
                              chunk_size=75000):
     """
     Cut a list of TS based on the ranges (array of start date and end date) provided.
@@ -327,7 +327,7 @@ def _cut_ts_list_using_range(spark_context,
     :param md_list: List of metadata corresponding to TSUID
     :param ranges: List of ranges to use for cut
     :param metric: metric to use for pattern
-    :param fid_pattern: Pattern of the new FID ('%(fid)s' and '%(metric)s' will be replaced by original FID and metric)
+    :param fid_pattern: Pattern of the new FID ('{fid}' and '%(metric)s' will be replaced by original FID and metric)
     :param chunk_size: Size of the ideal chunk (in number of points per chunk)
 
 
@@ -346,7 +346,7 @@ def _cut_ts_list_using_range(spark_context,
     fid_to_tsuid = {}
     ts_list_with_new_tsuid = []
     for timeseries in ts_list:
-        new_fid = fid_pattern % ({
+        new_fid = fid_pattern.format(**{
             'fid': IkatsApi.ts.fid(tsuid=timeseries),
             'M': metric
         })
@@ -448,8 +448,8 @@ def cut_ds_from_metric(ds_name, metric, criteria, group_by=None, fid_pattern=Non
     :param group_by: metadata to iterate on each value (Default to None to not use this behaviour)
     :param fid_pattern: name of the generated TS.
                         Variables can be used:
-                        - %(fid)s   : Functional identifier
-                        - %(M)s     : metric
+                        - {fid}   : Functional identifier
+                        - {M}     : metric
     :param chunk_size: Size of the ideal chunk (in number of points per chunk)
 
     :type ds_name: str
