@@ -37,7 +37,7 @@ STREAM_HANDLER.setFormatter(FORMATTER)
 LOGGER.addHandler(STREAM_HANDLER)
 
 
-class TestTsCut(TestCase):
+class TestDsCutByMetric(TestCase):
     """
     Tests the ds_cut_from_metric method
 
@@ -165,7 +165,7 @@ class TestTsCut(TestCase):
             ds_length = len(tsuid_list)
 
             # Run the test
-            fid_pattern = "%(fid)s_%(M)s_cut"
+            fid_pattern = "{fid}_{M}_cut"
             metric = "cut_metric"
             result = cut_ds_from_metric(ds_name=ds_name,
                                         metric=metric,
@@ -202,7 +202,7 @@ class TestTsCut(TestCase):
             for fid in ['source_cut', 'to_cut_1', 'to_cut_2', 'to_cut_3', 'to_cut_4']:
                 # Delete created TS
                 try:
-                    tsuid = IkatsApi.fid.tsuid(fid_pattern % {'M': metric, 'fid': fid})
+                    tsuid = IkatsApi.fid.tsuid(fid_pattern.formt(**{'M': metric, 'fid': fid}))
                     IkatsApi.ts.delete(tsuid=tsuid, no_exception=True)
                 except ValueError:
                     # No TS to delete
@@ -298,7 +298,7 @@ class TestTsCut(TestCase):
             ds_length = len(tsuid_list)
 
             # Run the test (forcing chunk_sizeto split into several chunks)
-            fid_pattern = "%(fid)s_%(M)s_cut"
+            fid_pattern = "{fid}_{M}_cut"
             metric = "cut_metric"
             result = cut_ds_from_metric(ds_name=ds_name,
                                         metric=metric,
@@ -331,7 +331,7 @@ class TestTsCut(TestCase):
             for fid in ['source_cut', 'to_cut_1', 'to_cut_2', 'to_cut_3']:
                 # Delete created TS
                 try:
-                    tsuid = IkatsApi.fid.tsuid(fid_pattern % {'M': metric, 'fid': fid})
+                    tsuid = IkatsApi.fid.tsuid(fid_pattern.format(**{'M': metric, 'fid': fid}))
                     IkatsApi.ts.delete(tsuid=tsuid, no_exception=True)
                 except ValueError:
                     # No TS to delete
@@ -526,7 +526,7 @@ class TestTsCut(TestCase):
                                tsuid_list=tsuid_list)
 
             # Run the test
-            fid_pattern = "%(fid)s__%(M)s__cut"
+            fid_pattern = "{fid}__{M}__cut"
             metric = "cut_metric"
             result = cut_ds_from_metric(ds_name=ds_name,
                                         metric=metric,
@@ -572,7 +572,7 @@ class TestTsCut(TestCase):
                         'G2_source_cut', 'G2_to_cut_1', 'G2_to_cut_2', 'G2_to_cut_3', 'G2_to_cut_4']:
                 # Delete created TS
                 try:
-                    tsuid = IkatsApi.fid.tsuid(fid_pattern % {'M': metric, 'fid': fid})
+                    tsuid = IkatsApi.fid.tsuid(fid_pattern.format(**{'M': metric, 'fid': fid}))
                     IkatsApi.ts.delete(tsuid=tsuid, no_exception=True)
                 except ValueError:
                     # No TS to delete
@@ -763,7 +763,7 @@ class TestTsCut(TestCase):
                                tsuid_list=tsuid_list)
 
             # Run the test
-            fid_pattern = "%(fid)s__%(M)s__cut"
+            fid_pattern = "{fid}__{M}__cut"
             metric = "cut_metric"
 
             with self.assertRaises(ValueError):
@@ -814,7 +814,7 @@ class TestTsCut(TestCase):
                         'G2_source_cut', 'G2_to_cut_1', 'G2_to_cut_2', 'G2_to_cut_3', 'G2_to_cut_4']:
                 # Delete created TS
                 try:
-                    tsuid = IkatsApi.fid.tsuid(fid_pattern % {'M': metric, 'fid': fid})
+                    tsuid = IkatsApi.fid.tsuid(fid_pattern.format(**{'M': metric, 'fid': fid}))
                     IkatsApi.ts.delete(tsuid=tsuid, no_exception=True)
                 except ValueError:
                     # No TS to delete
@@ -1018,7 +1018,7 @@ class TestTsCut(TestCase):
                                tsuid_list=tsuid_list)
 
             # Run the test
-            fid_pattern = "%(fid)s__%(M)s__cut"
+            fid_pattern = "{fid}__{M}__cut"
             metric = "cut_metric"
 
             with self.assertRaises(ValueError):
@@ -1038,7 +1038,7 @@ class TestTsCut(TestCase):
                         'G3_to_cut_1']:
                 # Delete created TS
                 try:
-                    tsuid = IkatsApi.fid.tsuid(fid_pattern % {'M': metric, 'fid': fid})
+                    tsuid = IkatsApi.fid.tsuid(fid_pattern.format(**{'M': metric, 'fid': fid}))
                     IkatsApi.ts.delete(tsuid=tsuid, no_exception=True)
                 except ValueError:
                     # No TS to delete
