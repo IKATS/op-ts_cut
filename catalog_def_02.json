@@ -31,6 +31,12 @@
       "description": "Optional: maximum number of points retained by the time cut.",
       "type": "number",
       "label": "Number of points"
+    },
+    {
+      "name": "fid",
+      "description": "Optional: functional id of the resulting timeserie.",
+      "type": "text",
+      "label": "Functional id"
     }
   ],
   "outputs": [
