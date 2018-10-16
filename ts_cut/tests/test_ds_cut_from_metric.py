@@ -202,7 +202,7 @@ class TestDsCutByMetric(TestCase):
             for fid in ['source_cut', 'to_cut_1', 'to_cut_2', 'to_cut_3', 'to_cut_4']:
                 # Delete created TS
                 try:
-                    tsuid = IkatsApi.fid.tsuid(fid_pattern.formt(**{'M': metric, 'fid': fid}))
+                    tsuid = IkatsApi.fid.tsuid(fid_pattern.format(**{'M': metric, 'fid': fid}))
                     IkatsApi.ts.delete(tsuid=tsuid, no_exception=True)
                 except ValueError:
                     # No TS to delete
@@ -224,6 +224,9 @@ class TestDsCutByMetric(TestCase):
 
         try:
             # Create Test data
+
+            ds_name = "TEST_cut_ds_156940"
+            IkatsApi.ds.delete(ds_name=ds_name, deep=True)
 
             # Source used to cut
             result_ts_1 = IkatsApi.ts.create(
@@ -289,8 +292,6 @@ class TestDsCutByMetric(TestCase):
             IkatsApi.md.create(tsuid=result_ts_4['tsuid'], name="qual_ref_period", value="100")
 
             # Creation of dataset
-            ds_name = "TEST_cut_ds_156940"
-            IkatsApi.ds.delete(ds_name=ds_name, deep=True)
             tsuid_list = [result_ts_1['tsuid'], result_ts_2['tsuid'], result_ts_3['tsuid'], result_ts_4['tsuid']]
             IkatsApi.ds.create(ds_name=ds_name,
                                description="Test for cut ds from metric",
@@ -803,7 +804,7 @@ class TestDsCutByMetric(TestCase):
                 cut_ds_from_metric(ds_name=ds_name,
                                    metric=metric,
                                    criteria="M>0",
-                                   fid_pattern="%(wrong_replacement)s",
+                                   fid_pattern="{wrong_replacement}",
                                    group_by="my_group")
 
         finally:
